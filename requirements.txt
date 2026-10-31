@@ -1,0 +1,12 @@
+# Python 3.11 – 3.13 (tavsiya: 3.12 yoki 3.13, python.org dan)
+numpy>=1.26
+# mediapipe opencv-contrib-python ni o'zi o'rnatadi — opencv-python ni alohida o'rnatmang (ziddiyat)
+opencv-contrib-python>=4.10
+onnxruntime>=1.20
+mediapipe>=0.10.20
+PySide6>=6.7
+cryptography>=42
+keyring>=25
+argon2-cffi>=23.1
+cv2-enumerate-cameras>=1.1
+pyttsx3>=2.90

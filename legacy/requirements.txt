@@ -1,0 +1,6 @@
+opencv-python
+mediapipe
+face_recognition
+Pillow
+pyttsx3
+tk

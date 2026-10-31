@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python -m pip install -r requirements-dev.txt
+      - run: ruff check faceid tests tools
+      - name: Unit testlar (modellarsiz)
+        run: python -m pytest
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgles2
+      - run: python -m pip install -r requirements-dev.txt
+      - uses: actions/cache@v4
+        with:
+          path: ~/faceid-models
+          key: faceid-models-v1
+      - name: Modellarni yuklash va SHA-256 tekshiruvi
+        env:
+          FACEID_MODELS: ~/faceid-models
+        run: python -m faceid models
+      - name: Integratsiya testlari (haqiqiy neyron tarmoqlar)
+        env:
+          FACEID_MODELS: ~/faceid-models
+        run: python -m pytest tests/test_models.py

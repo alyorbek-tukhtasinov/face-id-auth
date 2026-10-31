@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+# Biometrik ma'lumotlar hech qachon repozitoriyga tushmasligi kerak
+*.db
+*.db-wal
+*.db-shm
+.master.key
+settings.json
+# Katta modellar foydalanuvchi papkasiga yuklanadi (assets/models dagi kichik ONNX lar bundan mustasno)
+/models/
+*.zip
+!faceidauth.zip
