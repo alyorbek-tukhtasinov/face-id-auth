@@ -63,25 +63,118 @@ class FrameSource:
         pass
 
 
+class CameraError(RuntimeError):
+    """Kamera hech bir usulda kadr bermadi."""
+
+    def __init__(self, device: CameraDevice, attempts: list[str]) -> None:
+        super().__init__(f"{device.label()}: " + "; ".join(attempts))
+        self.device = device
+        self.attempts = attempts
+
+
+@dataclass(frozen=True)
+class CaptureConfig:
+    label: str
+    backend: int
+    index: int
+    fourcc: str | None
+    width: int
+    height: int
+
+
+def _index_for(backend: int, name: str, fallback: int) -> int:
+    """Turli backendlarda kameralar tartibi farq qilishi mumkin — nomi bo'yicha topamiz."""
+    try:
+        from cv2_enumerate_cameras import enumerate_cameras
+
+        for c in enumerate_cameras(backend):
+            if c.name == name:
+                return c.index
+    except Exception:  # noqa: BLE001
+        pass
+    return fallback
+
+
+def capture_configs(device: CameraDevice, width: int, height: int) -> list[CaptureConfig]:
+    """Kamerani ochish usullari — eng yaxshisidan eng soddasigacha."""
+    out: list[CaptureConfig] = []
+    if sys.platform == "win32":
+        ds = device.index if device.backend == cv2.CAP_DSHOW else _index_for(cv2.CAP_DSHOW, device.name, device.index)
+        ms = _index_for(cv2.CAP_MSMF, device.name, device.index)
+        out += [
+            CaptureConfig("DSHOW MJPG", cv2.CAP_DSHOW, ds, "MJPG", width, height),
+            CaptureConfig("DSHOW", cv2.CAP_DSHOW, ds, None, width, height),
+            CaptureConfig("MSMF", cv2.CAP_MSMF, ms, None, width, height),
+            CaptureConfig("MSMF 640x480", cv2.CAP_MSMF, ms, None, 640, 480),
+            CaptureConfig("DSHOW 640x480", cv2.CAP_DSHOW, ds, None, 640, 480),
+        ]
+    else:
+        out += [
+            CaptureConfig("MJPG", device.backend, device.index, "MJPG", width, height),
+            CaptureConfig("default", device.backend, device.index, None, width, height),
+        ]
+    out.append(CaptureConfig("ANY", cv2.CAP_ANY, device.index, None, 0, 0))
+    seen, uniq = set(), []
+    for c in out:
+        key = (c.backend, c.index, c.fourcc, c.width, c.height)
+        if key not in seen:
+            seen.add(key)
+            uniq.append(c)
+    return uniq
+
+
+def open_capture(device: CameraDevice, width: int = 1280, height: int = 720, warmup_s: float = 3.0,
+                 log=None) -> tuple[cv2.VideoCapture, CaptureConfig, np.ndarray]:
+    """Har bir usulni sinaydi va haqiqatan kadr bergan birinchisini qaytaradi.
+
+    Faqat ``isOpened()`` ga ishonib bo'lmaydi: ba'zi drayverlar (ko'p HP/Lenovo
+    kameralari, DirectShow + MJPG) ochiladi-yu, lekin kadr bermaydi.
+    """
+    attempts: list[str] = []
+    for cfg in capture_configs(device, width, height):
+        t0 = time.monotonic()
+        cap = cv2.VideoCapture(cfg.index, cfg.backend)
+        if not cap.isOpened():
+            cap.release()
+            attempts.append(f"{cfg.label}: ochilmadi")
+            if log:
+                log(attempts[-1])
+            continue
+        if cfg.fourcc:
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*cfg.fourcc))
+        if cfg.width:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, cfg.width)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, cfg.height)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        frame = None
+        while time.monotonic() - t0 < warmup_s:
+            ok, f = cap.read()
+            if ok and f is not None and f.size:
+                frame = f
+                break
+            time.sleep(0.05)
+        if frame is not None:
+            if log:
+                log(f"{cfg.label}: OK {frame.shape[1]}x{frame.shape[0]} ({time.monotonic() - t0:.1f}s)")
+            return cap, cfg, frame
+        cap.release()
+        attempts.append(f"{cfg.label}: ochildi, lekin kadr bermadi")
+        if log:
+            log(attempts[-1])
+    raise CameraError(device, attempts)
+
+
 class LiveCamera(FrameSource):
     """Kamerani alohida oqimda o'qiydi va doim eng so'nggi kadrni beradi (kechikishsiz)."""
 
     def __init__(self, device: CameraDevice, width: int = 1280, height: int = 720) -> None:
         self.name = device.name
         self.device = device
-        self.cap = cv2.VideoCapture(device.index, device.backend)
-        if not self.cap.isOpened():
-            self.cap = cv2.VideoCapture(device.index)
-        if not self.cap.isOpened():
-            raise RuntimeError(f"Kamerani ochib bo'lmadi: {device.label()}")
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        self._frame: np.ndarray | None = None
-        self._ts = 0.0
-        self._seq = 0
-        self._read_seq = -1
+        self.cap, self.config, first = open_capture(device, width, height)
+        self._frame: np.ndarray | None = first
+        self._ts = time.monotonic()
+        self._seq = 1
+        self._read_seq = 0
         self._cond = threading.Condition()
         self._running = True
         self._failures = 0
@@ -93,7 +186,7 @@ class LiveCamera(FrameSource):
             ok, frame = self.cap.read()
             if not ok or frame is None:
                 self._failures += 1
-                if self._failures > 50:
+                if self._failures > 150:  # ~3 soniya kadrsiz
                     break
                 time.sleep(0.02)
                 continue

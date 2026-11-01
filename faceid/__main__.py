@@ -84,6 +84,49 @@ def cmd_doctor(_a) -> int:
     return 0 if not miss else 1
 
 
+def cmd_camera(a) -> int:
+    """Kamerani barcha usullarda sinab ko'radi va qaysi biri ishlashini ko'rsatadi."""
+    import numpy as np
+
+    from .camera import CameraError, list_cameras, open_capture
+    from .config import Settings
+    from .liveness.injection import is_virtual_camera
+
+    s = Settings.load()
+    cams = list_cameras()
+    print("Kameralar:")
+    for c in cams:
+        print("  ", c.label(), "  ⚠ VIRTUAL" if is_virtual_camera(c.name) else "")
+    idx = s.camera_index if a.index is None else a.index
+    dev = next((c for c in cams if c.index == idx), None)
+    if dev is None:
+        print(f"\n{idx}-raqamli kamera topilmadi")
+        return 1
+    print(f"\nSinalmoqda: {dev.label()}")
+    try:
+        cap, cfg, frame = open_capture(dev, s.camera_width, s.camera_height, log=lambda m: print("   ", m))
+    except CameraError:
+        from .i18n import set_language, t
+
+        set_language(s.language)
+        print("\n✗ Kamera hech bir usulda tasvir bermadi.\n")
+        print(t("fail_camera_help"))
+        return 1
+    t0, n, means = time.perf_counter(), 0, []
+    while time.perf_counter() - t0 < 3.0:
+        ok, f = cap.read()
+        if ok and f is not None:
+            n += 1
+            means.append(float(f[::8, ::8].mean()))
+    cap.release()
+    fps = n / (time.perf_counter() - t0)
+    print(f"\n✓ Ishlaydi: usul={cfg.label}, o'lcham={frame.shape[1]}x{frame.shape[0]}, ~{fps:.0f} FPS, "
+          f"yorqinlik={np.mean(means) if means else 0:.0f}/255")
+    if means and np.mean(means) < 4:
+        print("  ⚠ Tasvir qop-qora — kamera pardasi (shutter) yopiq bo'lishi mumkin")
+    return 0
+
+
 def cmd_users(a) -> int:
     from .services.app import FaceIDService
 
@@ -154,7 +197,11 @@ def cmd_verify(a) -> int:
         if s.block_virtual_cameras and is_virtual_camera(dev.name, s.allowed_camera_names):
             print(json.dumps({"success": False, "reason": "inj_virtual_camera"}))
             return 1
-        src = LiveCamera(dev, s.camera_width, s.camera_height)
+        try:
+            src = LiveCamera(dev, s.camera_width, s.camera_height)
+        except Exception as exc:  # noqa: BLE001
+            print(json.dumps({"success": False, "reason": "camera_no_frames", "detail": str(exc)}, ensure_ascii=False))
+            return 1
     sess = BiometricSession(eng, Mode.AUTH, svc.gallery, s, claimed_user=claimed, camera_mirrored=s.camera_hw_mirrored)
     last = ""
     try:
@@ -219,6 +266,8 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--source", help="kamera o'rniga video fayl (test uchun)")
     sub.add_parser("models", help="modellarni yuklab olish va tekshirish")
     sub.add_parser("doctor", help="tizim diagnostikasi va tezlik o'lchovi")
+    cm = sub.add_parser("camera", help="kamerani barcha usullarda sinash")
+    cm.add_argument("--index", type=int, help="kamera raqami (standart: sozlamalardagi)")
     u = sub.add_parser("users", help="foydalanuvchilar")
     u.add_argument("--delete", type=int, metavar="ID")
     au = sub.add_parser("audit", help="audit jurnali")
@@ -240,7 +289,7 @@ def main(argv: list[str] | None = None) -> int:
         from .gui.app import run
 
         return run(getattr(a, "source", None))
-    return {"models": cmd_models, "doctor": cmd_doctor, "users": cmd_users, "audit": cmd_audit,
+    return {"models": cmd_models, "doctor": cmd_doctor, "camera": cmd_camera, "users": cmd_users, "audit": cmd_audit,
             "verify": cmd_verify, "evaluate": cmd_evaluate}[a.cmd](a)
 
 

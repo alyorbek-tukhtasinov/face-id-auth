@@ -217,3 +217,24 @@ def test_challenge_count_setting(n):
     u = SimUser(me)
     res = run(u, Mode.AUTH, {1: me[None]}, s)
     assert res.success and len(res.details["challenges"]) == n
+
+
+def test_black_frames_are_not_injection():
+    """Yopiq parda — qop-qora kadrlar "muzlagan oqim" hujumi deb topilmasligi kerak."""
+    me = unit(1)
+    u = SimUser(me)
+    s = Settings()
+    eng = FakeEngine(u, s)
+    sess = BiometricSession(eng, Mode.AUTH, lambda: {7: me[None]}, s)
+    u.session = sess
+    black = np.zeros((720, 1280, 3), np.uint8)
+    for i in range(60):
+        rep = sess.process(black, ts=i / 15)
+    assert sess.result is None and rep.instruction == "cam_black"
+    # Parda ochildi — sessiya odatdagidek davom etadi
+    rng = np.random.default_rng(0)
+    for i in range(60, 600):
+        sess.process(rng.integers(0, 255, (720, 1280, 3), dtype=np.uint8), ts=i / 15)
+        if sess.result:
+            break
+    assert sess.result is not None and sess.result.success

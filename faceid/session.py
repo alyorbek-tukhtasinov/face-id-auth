@@ -155,6 +155,12 @@ class BiometricSession:
             self._finish(False, "session_timeout")
             return self._report("fail_session_timeout")
 
+        # 0) Qop-qora kadr (yopiq parda) — bu hujum emas, foydalanuvchiga aytamiz.
+        #    Injection monitoriga bermaymiz, aks holda bir xil qora kadrlar "muzlagan oqim" bo'lib qoladi.
+        if float(frame[::8, ::8].mean()) < 4.0:
+            self._stable = 0
+            return self._report("cam_black", steps=len(self.challenge.sequence))
+
         # 1) Injection
         self.inj.update(frame)
         if self.inj.suspicious:

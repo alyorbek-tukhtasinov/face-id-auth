@@ -85,6 +85,8 @@ Linux/macOS uchun `./install.sh` va `./run.sh` dan foydalaning.
 
 - Yuzingiz oldidan bir tekis yoritilgan bo'lsin, orqangizda yorqin deraza bo'lmasin.
 - Kameradan 40–70 sm masofada o'tiring.
+- Kamera ochilmasa yoki "tasvir bermadi" desa, **`camera-test.bat`** ni ishga tushiring. U kamerani barcha
+  usullarda sinab ko'radi va nima qilish kerakligini aytadi.
 - "Chapga burilish" teskari ishlasa, sozlamalarda **"Kamera tasvirni o'zi ko'zgulaydi"** ni yoqing.
 - Ovozli ko'rsatmalar Windows'dagi ovozlardan foydalanadi. O'zbek tili uchun Windows'da ovoz yo'q,
   shuning uchun bu tilda faqat ekrandagi matn ko'rsatiladi. Rus yoki ingliz tilida ovoz ishlaydi.

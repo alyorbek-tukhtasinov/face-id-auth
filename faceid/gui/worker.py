@@ -9,7 +9,7 @@ import numpy as np
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtGui import QImage
 
-from ..camera import CameraDevice, FrameSource, LiveCamera, VideoFileSource, list_cameras
+from ..camera import CameraDevice, CameraError, FrameSource, LiveCamera, VideoFileSource, list_cameras
 from ..config import Settings
 from ..liveness.injection import is_virtual_camera
 from ..session import BiometricSession, FrameReport, Mode, SessionResult
@@ -55,7 +55,8 @@ def to_qimage(frame_bgr: np.ndarray) -> QImage:
 class SessionWorker(QThread):
     frame = Signal(QImage, object)  # (kadr, FrameReport)
     finished_result = Signal(object)  # SessionResult
-    error = Signal(str)
+    error = Signal(str, str)  # (i18n kaliti, texnik tafsilot)
+    status = Signal(str)  # i18n kaliti
 
     def __init__(self, engine, settings: Settings, mode: Mode, gallery, claimed_user: int | None = None,
                  source_path: str | None = None) -> None:
@@ -84,13 +85,21 @@ class SessionWorker(QThread):
         return LiveCamera(dev, self.settings.camera_width, self.settings.camera_height)
 
     def run(self) -> None:
+        self.status.emit("cam_opening")
         try:
             src = self._open()
         except PermissionError:
             self.finished_result.emit(SessionResult(False, "inj_virtual_camera"))
             return
+        except CameraError as exc:
+            self.error.emit("fail_camera_no_frames", "; ".join(exc.attempts))
+            return
         except Exception as exc:  # noqa: BLE001
-            self.error.emit(str(exc))
+            traceback.print_exc()
+            self.error.emit("fail_camera", str(exc))
+            return
+        if self._stop:
+            src.release()
             return
         session = BiometricSession(self.engine, self.mode, self.gallery, self.settings, claimed_user=self.claimed,
                                    camera_mirrored=getattr(self.settings, "camera_hw_mirrored", False))
@@ -101,7 +110,7 @@ class SessionWorker(QThread):
                 if frame is None:
                     empty += 1
                     if empty > 5:
-                        self.error.emit("camera_stopped")
+                        self.error.emit("fail_camera_stopped", getattr(src, "name", ""))
                         return
                     continue
                 empty = 0
@@ -112,6 +121,6 @@ class SessionWorker(QThread):
                     return
         except Exception as exc:  # noqa: BLE001
             traceback.print_exc()
-            self.error.emit(str(exc))
+            self.error.emit("fail_internal", f"{type(exc).__name__}: {exc}")
         finally:
             src.release()

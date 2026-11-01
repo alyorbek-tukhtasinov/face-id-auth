@@ -53,6 +53,26 @@ STRINGS: dict[str, dict[str, str]] = {
     "fail_enroll_inconsistent": {"uz": "Namunalar bir-biriga mos emas — qayta urinib ko'ring", "ru": "Образцы не согласованы — повторите", "en": "Samples are inconsistent — try again"},
     "fail_already_enrolled": {"uz": "Bu yuz allaqachon ro'yxatda bor", "ru": "Это лицо уже зарегистрировано", "en": "This face is already enrolled"},
     "fail_locked": {"uz": "Ko'p muvaffaqiyatsiz urinish. {sec} soniyadan keyin urinib ko'ring", "ru": "Слишком много попыток. Повторите через {sec} с", "en": "Too many attempts. Try again in {sec}s"},
+    "cam_opening": {"uz": "Kamera ochilmoqda...", "ru": "Открываем камеру...", "en": "Opening camera..."},
+    "cam_black": {"uz": "Kadr qop-qora — kamera pardasi (shutter) yopiq emasmi?", "ru": "Кадр чёрный — не закрыта ли шторка камеры?", "en": "Image is black — is the camera shutter closed?"},
+    "fail_camera_no_frames": {"uz": "Kamera ochildi, lekin tasvir bermadi", "ru": "Камера открылась, но не передаёт изображение", "en": "The camera opened but sends no image"},
+    "fail_camera_stopped": {"uz": "Kamera tasvir berishni to'xtatdi", "ru": "Камера перестала передавать изображение", "en": "The camera stopped sending images"},
+    "fail_internal": {"uz": "Ichki xatolik", "ru": "Внутренняя ошибка", "en": "Internal error"},
+    "fail_camera_help": {
+        "uz": "1) Kamerani ishlatayotgan boshqa dasturlarni yoping (Zoom, Teams, Telegram, brauzer, DroidCam, Kamera ilovasi).\n"
+              "2) Windows Sozlamalari → Maxfiylik va xavfsizlik → Kamera: \"Kameraga kirish\" va "
+              "\"Ish stoli ilovalariga kameraga kirishga ruxsat berish\" yoqilgan bo'lsin.\n"
+              "3) Noutbukdagi kamera pardasi (shutter) ochiq va klaviaturadagi kamera tugmasi o'chirilmagan bo'lsin.\n"
+              "4) Boshqaruv paneli → Sozlamalar dan boshqa kamerani tanlab ko'ring.",
+        "ru": "1) Закройте другие программы, использующие камеру (Zoom, Teams, Telegram, браузер, DroidCam).\n"
+              "2) Параметры Windows → Конфиденциальность → Камера: разрешите доступ, в т.ч. классическим приложениям.\n"
+              "3) Откройте шторку камеры и проверьте клавишу отключения камеры.\n"
+              "4) Выберите другую камеру в Панели управления → Настройки.",
+        "en": "1) Close other apps using the camera (Zoom, Teams, Telegram, browser, DroidCam).\n"
+              "2) Windows Settings → Privacy & security → Camera: allow access, including for desktop apps.\n"
+              "3) Open the camera shutter and check the camera kill key.\n"
+              "4) Pick another camera in Admin panel → Settings.",
+    },
     "fail_camera": {"uz": "Kamerani ochib bo'lmadi", "ru": "Не удалось открыть камеру", "en": "Could not open the camera"},
     "done": {"uz": "Tugadi", "ru": "Готово", "en": "Done"},
     # --- Interfeys ---

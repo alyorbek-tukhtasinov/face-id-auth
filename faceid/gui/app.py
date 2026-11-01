@@ -226,6 +226,8 @@ class MainWindow(QMainWindow):
         self.r_det = QLabel()
         self.r_det.setObjectName("muted")
         self.r_det.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.r_det.setWordWrap(True)
+        self.r_det.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lay.addWidget(self.r_icon)
         lay.addWidget(self.r_msg)
         lay.addWidget(self.r_det)
@@ -446,6 +448,7 @@ class MainWindow(QMainWindow):
         self.worker.frame.connect(self._on_frame)
         self.worker.finished_result.connect(self._on_session_done)
         self.worker.error.connect(self._on_session_error)
+        self.worker.status.connect(self._on_worker_status)
         self.worker.start()
 
     def _stop_worker(self) -> None:
@@ -470,9 +473,13 @@ class MainWindow(QMainWindow):
             self.voice.say(text)
         self._last_instr = rep.instruction
 
-    def _on_session_error(self, msg: str) -> None:
+    def _on_session_error(self, key: str, detail: str) -> None:
         self._stop_worker()  # oqim to'liq tugaguncha kutamiz — aks holda Qt ilovani yiqitadi
-        self._show_result(False, t("fail_camera"), msg)
+        help_text = t("fail_camera_help") if key.startswith("fail_camera") else ""
+        self._show_result(False, t(key), "\n\n".join(x for x in (help_text, detail) if x))
+
+    def _on_worker_status(self, key: str) -> None:
+        self.instr.setText(t(key))
 
     def _on_session_done(self, res: SessionResult) -> None:
         self._stop_worker()
