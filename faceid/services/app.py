@@ -123,8 +123,11 @@ class FaceIDService:
             return AuthOutcome(False, "locked", self.db.user(claimed), locked_for_s=self.locked_for(claimed))
         self.db.record_attempt(uid, result.success, self.settings.lockout_base_s, self.settings.max_failed_attempts)
         self._global_attempt(result.success)
-        self.db.audit("auth", uid, ok=result.success, reason=result.reason, score=round(result.score, 4),
-                      pad=round(result.pad_score, 3), mode=mode.value)
+        info = {k: v for k, v in result.details.items() if k in ("action", "step", "pad_mean", "continuity")}
+        if not result.success:
+            info["reason"] = result.reason
+        self.db.audit("auth", uid, ok=result.success, score=round(result.score, 4), pad=round(result.pad_score, 3),
+                      mode=mode.value, **info)
         user = self.db.user(uid) if uid is not None else None
         locked = max(self.locked_for(uid) if uid is not None else 0, self.global_locked_for())
         return AuthOutcome(result.success, result.reason, user, result.score, locked)

@@ -238,3 +238,12 @@ def test_black_frames_are_not_injection():
         if sess.result:
             break
     assert sess.result is not None and sess.result.success
+
+
+def test_timeout_reports_failed_action():
+    me = unit(1)
+    u = SimUser(me)
+    u.cooperative = False
+    res = run(u, Mode.AUTH, {7: me[None]})
+    assert res.reason == "challenge_timeout"
+    assert res.details["step"] == 1 and res.details["action"] in {a.value for a in Action}

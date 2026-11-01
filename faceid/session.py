@@ -261,7 +261,9 @@ class BiometricSession:
     def _phase_challenge(self, frame, face, mesh, q, now, common) -> FrameReport:
         done = self.challenge.update(mesh, now)
         if self.challenge.failed:
-            self._finish(False, self.challenge.failed_reason)
+            self._finish(False, self.challenge.failed_reason,
+                         details={"action": self.challenge.current.value if self.challenge.current else "",
+                                  "step": self.challenge.index + 1})
             return self._report("fail_" + self.challenge.failed_reason, **common)
         total = len(self.challenge.sequence)
         prog = 0.1 + 0.6 * self.challenge.index / total

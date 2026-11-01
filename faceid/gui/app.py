@@ -508,7 +508,8 @@ class MainWindow(QMainWindow):
             if res.reason == "already_enrolled" and res.user_id:
                 u = self.service.db.user(res.user_id)
                 extra = u.name if u else ""
-            self.service.db.audit("enroll_failed", reason=res.reason)
+            extra_audit = {k: v for k, v in res.details.items() if k in ("action", "step", "pad_mean", "consistency")}
+            self.service.db.audit("enroll_failed", reason=res.reason, pad=round(res.pad_score, 3), **extra_audit)
             self._show_result(False, t("fail_" + res.reason), extra)
             return
         first = not self.service.db.users()
